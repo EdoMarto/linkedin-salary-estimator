@@ -49,7 +49,9 @@
     network: 'Could not reach Gemini. Check your connection.',
     server: 'Gemini returned an error. Try again later.',
     bad_response: 'Could not read Gemini\'s answer.',
-    empty: 'Gemini returned nothing. Try again.'
+    empty: 'Gemini returned nothing. Try again.',
+    blocked: 'Gemini stopped before answering.',
+    noprofile: 'Could not read this profile. Open it fully and try again.'
   };
 
   function panel() {
@@ -81,10 +83,11 @@
     panel().querySelector('.lse-body').innerHTML = `<p class="lse-muted">Estimating…</p>`;
   }
 
-  function showError(code) {
+  function showError(code, detail) {
     const el = panel();
+    const extra = detail ? ` <span class="lse-muted">(${detail})</span>` : '';
     el.querySelector('.lse-body').innerHTML =
-      `<p class="lse-err">${ERRORS[code] || 'Something went wrong.'}</p>
+      `<p class="lse-err">${ERRORS[code] || 'Something went wrong.'}${extra}</p>
        <button class="lse-go">Try again</button>`;
     el.querySelector('.lse-go').addEventListener('click', run);
   }
@@ -107,9 +110,9 @@
   async function run() {
     showLoading();
     const text = readProfileText();
-    if (!text) { showError('empty'); return; }
+    if (!text) { showError('noprofile'); return; }
     chrome.runtime.sendMessage({ cmd: 'estimate', profileText: text }, (res) => {
-      if (!res || !res.ok) { showError(res?.error || 'server'); return; }
+      if (!res || !res.ok) { showError(res?.error || 'server', res?.detail); return; }
       chrome.storage.local.set({ ['cache:' + profileKey()]: { at: Date.now(), data: res.data } });
       showResult(res.data);
     });

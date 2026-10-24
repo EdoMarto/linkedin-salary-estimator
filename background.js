@@ -39,6 +39,7 @@ async function estimate(profileText) {
     contents: [{ parts: [{ text: 'Profile text:\n"""\n' + profileText.slice(0, 6000) + '\n"""' }] }],
     generationConfig: {
       temperature: 0.2,
+      maxOutputTokens: 512,
       responseMimeType: 'application/json',
       responseSchema: schema
     }
@@ -61,8 +62,19 @@ async function estimate(profileText) {
 
   let json;
   try { json = await res.json(); } catch (_) { return { ok: false, error: 'bad_response' }; }
-  const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) return { ok: false, error: 'empty' };
+
+  // The prompt itself can be refused before any candidate is produced.
+  const blocked = json?.promptFeedback?.blockReason;
+  if (blocked) return { ok: false, error: 'blocked', detail: blocked };
+
+  const cand = json?.candidates?.[0];
+  const text = cand?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '';
+  if (!text) {
+    // No text: usually the answer was stopped. Surface why so it is not a mystery.
+    const reason = cand?.finishReason;
+    if (reason && reason !== 'STOP') return { ok: false, error: 'blocked', detail: reason };
+    return { ok: false, error: 'empty' };
+  }
 
   let data;
   try { data = JSON.parse(text); } catch (_) { return { ok: false, error: 'bad_response' }; }
