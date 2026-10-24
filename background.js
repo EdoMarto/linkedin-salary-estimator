@@ -1,84 +1,131 @@
-// Service worker: holds the Gemini call so the content script never touches the key directly
+// Service worker: holds the API call so the content script never touches the key directly
 // and so the request is not blocked by the page's CORS policy.
+// Three providers are supported: Gemini (native API), Groq and OpenRouter (OpenAI-compatible).
 
-const MODEL = 'gemini-2.0-flash';
-const ENDPOINT = (model, key) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+const DEFAULT_MODEL = {
+  gemini: 'gemini-2.0-flash',
+  groq: 'llama-3.3-70b-versatile',
+  openrouter: 'meta-llama/llama-3.3-70b-instruct:free'
+};
 
 const SYSTEM = [
-  'You estimate typical labour-market salaries for ROLES, not for individuals.',
-  'From the LinkedIn profile text, work out the current role, seniority, company (if stated) and location.',
-  'Then give the typical GROSS ANNUAL salary range for that kind of role in that location\'s market.',
-  'This is a market estimate for the role and seniority, from general knowledge of pay ranges.',
-  'It is NOT the actual salary of this specific person, which is private and unknown to you.',
-  'If the role or location is unclear, widen the range and lower the confidence.',
-  'Use the local currency of the location when you can.'
+  'You estimate typical labour-market salaries for a professional PROFILE, not for a named individual.',
+  'From the LinkedIn text, weigh the whole career: total years of experience, the roles held and how they',
+  'progressed, the current role and seniority, the field, and the location.',
+  'Give the typical GROSS ANNUAL salary range for someone with this background in that location\'s market.',
+  'This is a market estimate for a person with this experience and seniority, from general knowledge of pay ranges.',
+  'It is NOT the actual salary of any specific person, which is private and unknown to you.',
+  'If the experience or location is unclear, widen the range and lower the confidence.',
+  'Use the local currency of the location when you can.',
+  'Reply with ONLY a JSON object with keys: role (string), seniority (string), years (number),',
+  'location (string), currency (string ISO code), min (number), max (number),',
+  'confidence (one of "low","medium","high"), notes (one short sentence on what drove the estimate).'
 ].join(' ');
 
-const schema = {
+const userText = (profileText) => 'LinkedIn profile:\n"""\n' + String(profileText).slice(0, 8000) + '\n"""';
+
+// Gemini schema for structured output.
+const geminiSchema = {
   type: 'object',
   properties: {
     role: { type: 'string' },
     seniority: { type: 'string' },
+    years: { type: 'number' },
     location: { type: 'string' },
-    currency: { type: 'string', description: 'ISO code like EUR, USD, GBP' },
-    min: { type: 'number', description: 'lower bound of yearly gross salary' },
-    max: { type: 'number', description: 'upper bound of yearly gross salary' },
+    currency: { type: 'string' },
+    min: { type: 'number' },
+    max: { type: 'number' },
     confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
-    notes: { type: 'string', description: 'one short sentence on what the estimate is based on' }
+    notes: { type: 'string' }
   },
   required: ['role', 'currency', 'min', 'max', 'confidence']
 };
 
-async function estimate(profileText) {
-  const { geminiKey } = await chrome.storage.sync.get('geminiKey');
-  if (!geminiKey) return { ok: false, error: 'no_key' };
+function mapStatus(status) {
+  if (status === 400 || status === 401 || status === 403) return 'bad_key';
+  if (status === 429) return 'rate_limit';
+  return 'server';
+}
 
+// Pull the first {...} block out of a text answer, in case the model wraps it in prose or fences.
+function parseJson(text) {
+  if (!text) return null;
+  try { return JSON.parse(text); } catch (_) {}
+  const m = text.match(/\{[\s\S]*\}/);
+  if (m) { try { return JSON.parse(m[0]); } catch (_) {} }
+  return null;
+}
+
+async function callGemini(key, model, profileText) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM }] },
-    contents: [{ parts: [{ text: 'Profile text:\n"""\n' + profileText.slice(0, 6000) + '\n"""' }] }],
-    generationConfig: {
-      temperature: 0.2,
-      maxOutputTokens: 512,
-      responseMimeType: 'application/json',
-      responseSchema: schema
-    }
+    contents: [{ parts: [{ text: userText(profileText) }] }],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 512, responseMimeType: 'application/json', responseSchema: geminiSchema }
   };
-
-  let res;
-  try {
-    res = await fetch(ENDPOINT(MODEL, geminiKey), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-  } catch (_) {
-    return { ok: false, error: 'network' };
-  }
-
-  if (res.status === 400 || res.status === 403) return { ok: false, error: 'bad_key' };
-  if (res.status === 429) return { ok: false, error: 'rate_limit' };
-  if (!res.ok) return { ok: false, error: 'server' };
-
-  let json;
-  try { json = await res.json(); } catch (_) { return { ok: false, error: 'bad_response' }; }
-
-  // The prompt itself can be refused before any candidate is produced.
+  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) return { ok: false, error: mapStatus(res.status) };
+  const json = await res.json().catch(() => null);
+  if (!json) return { ok: false, error: 'bad_response' };
   const blocked = json?.promptFeedback?.blockReason;
   if (blocked) return { ok: false, error: 'blocked', detail: blocked };
-
   const cand = json?.candidates?.[0];
   const text = cand?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '';
   if (!text) {
-    // No text: usually the answer was stopped. Surface why so it is not a mystery.
     const reason = cand?.finishReason;
     if (reason && reason !== 'STOP') return { ok: false, error: 'blocked', detail: reason };
     return { ok: false, error: 'empty' };
   }
+  const data = parseJson(text);
+  return data ? { ok: true, data } : { ok: false, error: 'bad_response' };
+}
 
-  let data;
-  try { data = JSON.parse(text); } catch (_) { return { ok: false, error: 'bad_response' }; }
-  return { ok: true, data };
+// Groq and OpenRouter both speak the OpenAI chat-completions format.
+async function callOpenAICompatible(url, key, model, profileText, extraHeaders) {
+  const body = {
+    model,
+    temperature: 0.2,
+    max_tokens: 512,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: SYSTEM },
+      { role: 'user', content: userText(profileText) }
+    ]
+  };
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key, ...(extraHeaders || {}) },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) return { ok: false, error: mapStatus(res.status) };
+  const json = await res.json().catch(() => null);
+  if (!json) return { ok: false, error: 'bad_response' };
+  const text = json?.choices?.[0]?.message?.content || '';
+  if (!text) {
+    const reason = json?.choices?.[0]?.finish_reason;
+    if (reason && reason !== 'stop') return { ok: false, error: 'blocked', detail: reason };
+    return { ok: false, error: 'empty' };
+  }
+  const data = parseJson(text);
+  return data ? { ok: true, data } : { ok: false, error: 'bad_response' };
+}
+
+async function estimate(profileText) {
+  const cfg = await chrome.storage.sync.get(['provider', 'keys', 'models']);
+  const provider = cfg.provider || 'gemini';
+  const key = cfg.keys?.[provider];
+  const model = (cfg.models?.[provider] || '').trim() || DEFAULT_MODEL[provider];
+  if (!key) return { ok: false, error: 'no_key' };
+
+  try {
+    if (provider === 'gemini') return await callGemini(key, model, profileText);
+    if (provider === 'groq') return await callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', key, model, profileText);
+    if (provider === 'openrouter') return await callOpenAICompatible('https://openrouter.ai/api/v1/chat/completions', key, model, profileText,
+      { 'HTTP-Referer': 'https://github.com/EdoMarto/linkedin-salary-estimator', 'X-Title': 'Salary Estimator for LinkedIn' });
+    return { ok: false, error: 'no_key' };
+  } catch (_) {
+    return { ok: false, error: 'network' };
+  }
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {

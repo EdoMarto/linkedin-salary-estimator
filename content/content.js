@@ -7,29 +7,49 @@
   // The slug that identifies the profile we are looking at, e.g. "/in/john-doe/".
   const profileKey = () => (location.pathname.match(/\/in\/[^/]+/) || [''])[0];
 
-  // Pull the readable text from the intro card at the top of the profile.
-  // We hand the raw text to the model instead of guessing brittle selectors for each field.
+  // Collapse the duplicated lines LinkedIn renders for screen readers, keep order.
+  function cleanLines(text, max) {
+    const seen = new Set();
+    const out = [];
+    for (let line of text.split('\n')) {
+      line = line.trim();
+      if (!line || seen.has(line)) continue;
+      seen.add(line);
+      out.push(line);
+      if (out.length >= max) break;
+    }
+    return out.join('\n');
+  }
+
+  // Build a profile summary for the model from the whole career, not just the current title.
+  // The name is left out on purpose: it adds nothing to a market estimate and keeps the
+  // request about a role/experience profile rather than a named individual.
   function readProfileText() {
     const h1 = document.querySelector('main h1');
     if (!h1) return null;
-    const card = h1.closest('section') || h1.parentElement?.parentElement || document.querySelector('main');
-    const name = h1.textContent.trim();
-    const parts = [name];
+    const card = h1.closest('section') || document.querySelector('main');
+    const parts = [];
 
-    const grab = (sel) => {
-      const el = (card || document).querySelector(sel);
-      if (el && el.textContent.trim()) parts.push(el.textContent.trim());
+    const grab = (label, sel, root) => {
+      const el = (root || card || document).querySelector(sel);
+      if (el && el.textContent.trim()) parts.push(label + ': ' + el.textContent.trim());
     };
-    grab('.text-body-medium.break-words');            // headline
-    grab('.text-body-small.inline.t-black--light.break-words'); // location
+    grab('Headline', '.text-body-medium.break-words');
+    grab('Location', '.text-body-small.inline.t-black--light.break-words');
 
-    // Current experience lines, if the section is on the page.
-    const exp = document.querySelector('#experience')?.closest('section');
-    if (exp) {
-      const lines = exp.innerText.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, 20);
-      parts.push('Experience:\n' + lines.join('\n'));
+    const section = (anchorId, label) => {
+      const sec = document.querySelector('#' + anchorId)?.closest('section');
+      if (sec) parts.push(label + ':\n' + cleanLines(sec.innerText, 40));
+    };
+    section('experience', 'Experience');
+    section('education', 'Education');
+    section('skills', 'Skills');
+
+    // Nothing useful beyond the headline means the profile is still loading or private.
+    if (parts.length <= 2 && !document.querySelector('#experience')) {
+      // Keep whatever we have; the model can still estimate from the headline + location.
     }
-    return parts.join('\n');
+    return parts.join('\n\n');
   }
 
   function fmtMoney(n, currency) {
@@ -100,9 +120,9 @@
     el.querySelector('.lse-body').innerHTML = `
       <div class="lse-range">${range}</div>
       <div class="lse-sub">${[d.role, d.location].filter(Boolean).join(' · ')}</div>
-      <div class="lse-conf">Confidence: ${d.confidence || 'low'}${d.seniority ? ' · ' + d.seniority : ''}</div>
+      <div class="lse-conf">Confidence: ${d.confidence || 'low'}${d.seniority ? ' · ' + d.seniority : ''}${d.years ? ' · ' + d.years + 'y exp' : ''}</div>
       ${d.notes ? `<p class="lse-muted">${d.notes}</p>` : ''}
-      <p class="lse-fine">Typical gross yearly pay for this kind of role in this market. Not this person's real salary, which is private and unknown.</p>
+      <p class="lse-fine">Typical gross yearly pay for someone with this experience in this market. Not this person's real salary, which is private and unknown.</p>
       <button class="lse-link" type="button">Re-estimate</button>`;
     el.querySelector('.lse-link').addEventListener('click', run);
   }

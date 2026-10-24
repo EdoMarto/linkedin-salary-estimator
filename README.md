@@ -4,22 +4,28 @@
 
 # Salary Estimator for LinkedIn
 
-A Chrome extension that shows an estimated market salary range for the role on a LinkedIn profile.
-It reads the role, seniority, company and location from the profile and asks Google Gemini for the
-typical pay for that kind of job in that market. A small card appears in the bottom right of the page.
+A Chrome extension that shows an estimated market salary range for a LinkedIn profile. It reads the whole
+career from the profile (years of experience, the roles and how they progressed, seniority, field and
+location) and asks an AI for the typical pay for someone with that background. A small card appears in the
+bottom right of the page.
 
-The number is an estimate for the role, not the real salary of that person. A person's actual pay is
-private and unknown. Think of it like a quick Glassdoor lookup for whatever role you are looking at.
+The number is a market estimate for a person with that experience, not the real salary of that individual.
+A person's actual pay is private and unknown. Think of it like a quick Glassdoor lookup.
 
 ## What you need
-A free Gemini API key. Get one at [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).
-It stays in your browser and is only sent to Google when you ask for an estimate.
+A free API key from one of these providers, set in the options:
+
+- **Google Gemini** - [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+- **Groq** - [console.groq.com/keys](https://console.groq.com/keys)
+- **OpenRouter** - [openrouter.ai/keys](https://openrouter.ai/keys) (pick a model ending in `:free`)
+
+The key stays in your browser and is sent straight to the provider you pick. You can switch provider any time.
 
 ## Install
 1. Download or clone this folder.
 2. Open `chrome://extensions` and turn on Developer mode (top right).
 3. Click Load unpacked and select the folder.
-4. Click the extension icon, open Options, and paste your Gemini API key.
+4. Click the extension icon, open Options, choose a provider and paste its API key.
 
 ## Use
 Open any profile at `linkedin.com/in/…`. A card shows in the bottom right with an "Estimate market salary"
@@ -27,9 +33,10 @@ button. Click it to get a range for the role, the location it used, and a confid
 cached per profile for a month so you do not spend quota reopening the same page.
 
 ## How it works
-- The content script reads the public text at the top of the profile (name, headline, location, experience).
-- The background worker sends it to Gemini with structured output and gets back a currency, a min and a max,
-  and a confidence level.
+- The content script reads the public text of the profile: headline, location, the full experience and
+  education. The name is left out, since a market estimate does not need it.
+- The background worker sends it to your chosen provider (Gemini natively, Groq and OpenRouter through their
+  OpenAI-compatible API) and gets back a currency, a min and a max, years of experience and a confidence level.
 - Your API key lives in `chrome.storage` and is only used by the background worker, never exposed to the page.
 
 ## Notes

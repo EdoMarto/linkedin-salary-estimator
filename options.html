@@ -8,12 +8,15 @@
       font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1d2226; }
     h1 { font-size: 20px; }
     label { font-weight: 600; display: block; margin: 18px 0 6px; }
-    input { width: 100%; box-sizing: border-box; padding: 9px 10px; font-size: 14px;
-      border: 1px solid #c9c9c4; border-radius: 6px; }
+    input, select { width: 100%; box-sizing: border-box; padding: 9px 10px; font-size: 14px;
+      border: 1px solid #c9c9c4; border-radius: 6px; background: #fff; }
+    .row { display: flex; gap: 8px; }
+    .row input { flex: 1; }
     button { margin-top: 14px; cursor: pointer; background: #0a66c2; color: #fff; border: 0;
       font-weight: 600; padding: 9px 16px; border-radius: 20px; font-size: 14px; }
-    button:hover { background: #004182; }
-    .msg { margin-top: 12px; font-size: 14px; }
+    button.alt { background: #e0dfdc; color: #1d2226; }
+    button:hover { filter: brightness(0.95); }
+    .msg { margin-top: 12px; font-size: 14px; min-height: 18px; }
     .ok { color: #1a7f37; } .err { color: #b24020; }
     .hint { color: #56687a; font-size: 13px; }
     a { color: #0a66c2; }
@@ -22,21 +25,32 @@
 </head>
 <body>
   <h1>Salary Estimator for LinkedIn</h1>
-  <p class="hint">Get a free Gemini API key at
-    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>,
-    then paste it here. It is stored in your browser only.</p>
 
-  <label for="key">Gemini API key</label>
-  <input id="key" type="password" placeholder="AIza..." autocomplete="off" spellcheck="false">
-  <div>
-    <button id="save">Save</button>
-    <button id="toggle" type="button" style="background:#e0dfdc;color:#1d2226;">Show</button>
+  <label for="provider">AI provider</label>
+  <select id="provider">
+    <option value="gemini">Google Gemini</option>
+    <option value="groq">Groq</option>
+    <option value="openrouter">OpenRouter</option>
+  </select>
+  <p class="hint" id="keyhint"></p>
+
+  <label for="key">API key</label>
+  <div class="row">
+    <input id="key" type="password" placeholder="Paste your key" autocomplete="off" spellcheck="false">
+    <button id="toggle" class="alt" type="button" style="margin-top:0;">Show</button>
   </div>
+
+  <label for="model">Model</label>
+  <input id="model" type="text" autocomplete="off" spellcheck="false">
+  <p class="hint" id="modelhint"></p>
+
+  <div><button id="save">Save</button></div>
   <div id="msg" class="msg"></div>
 
   <div class="note">
-    The number shown on a profile is an estimate of the typical market pay for that role, seniority and
-    location. It is not the real salary of that person, which is private and unknown.
+    The number shown on a profile is an estimate of the typical market pay for a person with that experience,
+    seniority and location. It is not the real salary of that person, which is private and unknown. Your key is
+    stored in your browser only and is sent straight to the provider you choose.
   </div>
 
   <script src="options.js"></script>
