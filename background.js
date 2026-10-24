@@ -3,9 +3,15 @@
 // Three providers are supported: Gemini (native API), Groq and OpenRouter (OpenAI-compatible).
 
 const DEFAULT_MODEL = {
-  gemini: 'gemini-2.0-flash',
+  gemini: 'gemini-3.8-flash',
   groq: 'llama-3.3-70b-versatile',
   openrouter: 'meta-llama/llama-3.3-70b-instruct:free'
+};
+
+// Models the providers have retired, mapped to what replaces them, so a saved old value self-heals.
+const RETIRED = {
+  'gemini-2.0-flash': 'gemini-3.8-flash',
+  'gemini-1.5-flash': 'gemini-3.8-flash'
 };
 
 const SYSTEM = [
@@ -127,7 +133,8 @@ async function estimate(profileText) {
   const cfg = await chrome.storage.sync.get(['provider', 'keys', 'models']);
   const provider = cfg.provider || 'gemini';
   const key = cfg.keys?.[provider];
-  const model = (cfg.models?.[provider] || '').trim() || DEFAULT_MODEL[provider];
+  let model = (cfg.models?.[provider] || '').trim() || DEFAULT_MODEL[provider];
+  if (RETIRED[model]) model = RETIRED[model];
   if (!key) return { ok: false, error: 'no_key' };
 
   try {
