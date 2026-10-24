@@ -1,0 +1,51 @@
+#lse-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 280px;
+  z-index: 99999;
+  background: #fff;
+  color: #1d2226;
+  border: 1px solid #e0dfdc;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .18);
+  font: 14px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+}
+#lse-panel .lse-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f3f2ef;
+  border-bottom: 1px solid #e0dfdc;
+}
+#lse-panel .lse-head strong { font-size: 13px; flex: 1; }
+#lse-panel .lse-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #0a66c2; flex: none;
+}
+#lse-panel .lse-x {
+  all: unset; cursor: pointer; font-size: 18px; line-height: 1;
+  color: #666; padding: 0 2px;
+}
+#lse-panel .lse-x:hover { color: #000; }
+#lse-panel .lse-body { padding: 12px; }
+#lse-panel .lse-go {
+  all: unset; display: block; width: 100%; box-sizing: border-box;
+  text-align: center; cursor: pointer;
+  background: #0a66c2; color: #fff; font-weight: 600;
+  padding: 8px 0; border-radius: 20px;
+}
+#lse-panel .lse-go:hover { background: #004182; }
+#lse-panel .lse-range { font-size: 20px; font-weight: 700; }
+#lse-panel .lse-sub { color: #0a66c2; font-weight: 600; margin-top: 2px; }
+#lse-panel .lse-conf { color: #56687a; font-size: 12px; margin-top: 4px; text-transform: capitalize; }
+#lse-panel .lse-muted { color: #56687a; font-size: 13px; margin: 8px 0 0; }
+#lse-panel .lse-err { color: #b24020; margin: 0 0 10px; }
+#lse-panel .lse-fine { color: #8a94a0; font-size: 11px; margin: 10px 0 0; }
+#lse-panel .lse-link {
+  all: unset; cursor: pointer; color: #0a66c2; font-size: 12px;
+  font-weight: 600; margin-top: 8px; display: inline-block;
+}
+#lse-panel .lse-link:hover { text-decoration: underline; }
