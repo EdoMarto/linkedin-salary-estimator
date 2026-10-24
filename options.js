@@ -37,6 +37,9 @@ function paint() {
   $('key').type = 'password';
   $('toggle').textContent = 'Show';
   $('msg').textContent = '';
+  // The loaded list belongs to the previous provider, so hide it on switch.
+  $('modelPick').hidden = true;
+  $('modelmsg').textContent = '';
 }
 
 chrome.storage.sync.get(['provider', 'keys', 'models', 'geminiKey'], (v) => {
@@ -95,14 +98,21 @@ $('loadModels').addEventListener('click', async () => {
     let models = await fetchModels(provider, key);
     // Put free OpenRouter models first so they are easy to spot.
     models.sort((a, b) => (b.endsWith(':free') - a.endsWith(':free')) || a.localeCompare(b));
-    const dl = $('models');
-    dl.innerHTML = models.map((m) => `<option value="${m}">`).join('');
-    msg.textContent = models.length + ' models available. Click the Model box to pick one.';
+    const pick = $('modelPick');
+    pick.innerHTML = '<option value="">Pick a model…</option>' +
+      models.map((m) => `<option value="${m}">${m}</option>`).join('');
+    pick.hidden = false;
+    msg.textContent = models.length + ' models available. Pick one from the dropdown below.';
     msg.className = 'msg ok';
   } catch (e) {
     msg.textContent = 'Could not load models (' + (e.message || e) + '). Check the key.';
     msg.className = 'msg err';
   }
+});
+
+// Choosing from the dropdown fills the Model box (which stays editable for manual ids).
+$('modelPick').addEventListener('change', () => {
+  if ($('modelPick').value) $('model').value = $('modelPick').value;
 });
 
 $('save').addEventListener('click', () => {

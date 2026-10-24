@@ -42,10 +42,12 @@
 
   <label for="model">Model</label>
   <div class="row">
-    <input id="model" type="text" list="models" autocomplete="off" spellcheck="false">
+    <input id="model" type="text" autocomplete="off" spellcheck="false">
     <button id="loadModels" class="alt" type="button" style="margin-top:0;">Load models</button>
   </div>
-  <datalist id="models"></datalist>
+  <select id="modelPick" hidden style="margin-top:8px;">
+    <option value="">Pick a model…</option>
+  </select>
   <p class="hint" id="modelhint"></p>
   <p class="msg" id="modelmsg"></p>
 
