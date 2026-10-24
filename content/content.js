@@ -145,7 +145,7 @@
 
     // Safety net: if the worker never answers (e.g. it was suspended), do not spin forever.
     let done = false;
-    const guard = setTimeout(() => { if (!done) { done = true; showError('timeout'); } }, 40000);
+    const guard = setTimeout(() => { if (!done) { done = true; showError('timeout'); } }, 55000);
 
     chrome.runtime.sendMessage({ cmd: 'estimate', profileText: text }, (res) => {
       if (done) return;

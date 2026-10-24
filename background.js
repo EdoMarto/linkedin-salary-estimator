@@ -74,7 +74,9 @@ async function httpError(res) {
     const msg = json?.error?.message || json?.message || json?.error;
     if (msg) detail += ': ' + String(msg).slice(0, 140);
   } catch (_) {}
-  return { ok: false, error: mapStatus(res.status), detail };
+  // Overload (503), gateway (502/504), generic 500 and rate limit (429) are worth a quick retry.
+  const retryable = [429, 500, 502, 503, 504].includes(res.status);
+  return { ok: false, error: mapStatus(res.status), detail, retryable };
 }
 
 // Pull the first {...} block out of a text answer, in case the model wraps it in prose or fences.
@@ -148,15 +150,26 @@ async function estimate(profileText) {
   if (RETIRED[model]) model = RETIRED[model];
   if (!key) return { ok: false, error: 'no_key' };
 
-  try {
-    if (provider === 'gemini') return await callGemini(key, model, profileText);
-    if (provider === 'groq') return await callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', key, model, profileText);
-    if (provider === 'openrouter') return await callOpenAICompatible('https://openrouter.ai/api/v1/chat/completions', key, model, profileText,
+  const call = () => {
+    if (provider === 'groq') return callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', key, model, profileText);
+    if (provider === 'openrouter') return callOpenAICompatible('https://openrouter.ai/api/v1/chat/completions', key, model, profileText,
       { 'HTTP-Referer': 'https://github.com/EdoMarto/linkedin-salary-estimator', 'X-Title': 'Salary Estimator for LinkedIn' });
-    return { ok: false, error: 'no_key' };
-  } catch (e) {
-    return { ok: false, error: e?.name === 'AbortError' ? 'timeout' : 'network' };
+    return callGemini(key, model, profileText);
+  };
+
+  // Retry transient failures (overload, rate limit, 5xx) a couple of times with a growing pause.
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      last = await call();
+    } catch (e) {
+      last = { ok: false, error: e?.name === 'AbortError' ? 'timeout' : 'network', retryable: e?.name !== 'AbortError' };
+    }
+    if (last.ok || !last.retryable) return last;
+    if (attempt < 2) await sleep(1500 * (attempt + 1));
   }
+  return last;
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
