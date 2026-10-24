@@ -47,6 +47,19 @@ function mapStatus(status) {
   return 'server';
 }
 
+// Turn a failed response into an error object that carries the status and the provider's message,
+// so the card can show exactly what went wrong instead of a generic "try again later".
+async function httpError(res) {
+  let detail = String(res.status);
+  try {
+    const body = await res.text();
+    const json = JSON.parse(body);
+    const msg = json?.error?.message || json?.message || json?.error;
+    if (msg) detail += ': ' + String(msg).slice(0, 140);
+  } catch (_) {}
+  return { ok: false, error: mapStatus(res.status), detail };
+}
+
 // Pull the first {...} block out of a text answer, in case the model wraps it in prose or fences.
 function parseJson(text) {
   if (!text) return null;
@@ -64,7 +77,7 @@ async function callGemini(key, model, profileText) {
     generationConfig: { temperature: 0.2, maxOutputTokens: 512, responseMimeType: 'application/json', responseSchema: geminiSchema }
   };
   const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!res.ok) return { ok: false, error: mapStatus(res.status) };
+  if (!res.ok) return httpError(res);
   const json = await res.json().catch(() => null);
   if (!json) return { ok: false, error: 'bad_response' };
   const blocked = json?.promptFeedback?.blockReason;
@@ -97,7 +110,7 @@ async function callOpenAICompatible(url, key, model, profileText, extraHeaders) 
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key, ...(extraHeaders || {}) },
     body: JSON.stringify(body)
   });
-  if (!res.ok) return { ok: false, error: mapStatus(res.status) };
+  if (!res.ok) return httpError(res);
   const json = await res.json().catch(() => null);
   if (!json) return { ok: false, error: 'bad_response' };
   const text = json?.choices?.[0]?.message?.content || '';
