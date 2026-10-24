@@ -5,9 +5,9 @@
 # Salary Estimator for LinkedIn
 
 A Chrome extension that shows an estimated market salary range for a LinkedIn profile. It reads the whole
-career from the profile (years of experience, the roles and how they progressed, seniority, field and
-location) and asks an AI for the typical pay for someone with that background. A small card appears in the
-bottom right of the page.
+profile (years of experience, the roles and how they progressed, seniority, education, skills and location)
+and asks an AI for the typical pay for someone with that background. A small card appears in the bottom right
+of the page.
 
 The number is a market estimate for a person with that experience, not the real salary of that individual.
 A person's actual pay is private and unknown. Think of it like a quick Glassdoor lookup.
@@ -29,12 +29,12 @@ The key stays in your browser and is sent straight to the provider you pick. You
 
 ## Use
 Open any profile at `linkedin.com/in/…`. A card shows in the bottom right with an "Estimate market salary"
-button. Click it to get a range for the role, the location it used, and a confidence level. Estimates are
+button. Click it to get a range for that background, the location it used, and a confidence level. Estimates are
 cached per profile for a month so you do not spend quota reopening the same page.
 
 ## How it works
-- The content script reads the public text of the profile: headline, location, the full experience and
-  education. The name is left out, since a market estimate does not need it.
+- The content script reads the public text of the profile: headline, location, the full experience,
+  education and skills. The name is left out, since a market estimate does not need it.
 - The background worker sends it to your chosen provider (Gemini natively, Groq and OpenRouter through their
   OpenAI-compatible API) and gets back a currency, a min and a max, years of experience and a confidence level.
 - Your API key lives in `chrome.storage` and is only used by the background worker, never exposed to the page.
