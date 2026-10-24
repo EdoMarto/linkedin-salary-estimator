@@ -95,7 +95,7 @@ async function callGemini(key, model, profileText) {
     contents: [{ parts: [{ text: userText(profileText) }] }],
     generationConfig: { temperature: 0.2, maxOutputTokens: 512, responseMimeType: 'application/json', responseSchema: geminiSchema }
   };
-  const res = await fetchWithTimeout(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, 30000);
+  const res = await fetchWithTimeout(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, 60000);
   if (!res.ok) return httpError(res);
   const json = await res.json().catch(() => null);
   if (!json) return { ok: false, error: 'bad_response' };
@@ -128,7 +128,7 @@ async function callOpenAICompatible(url, key, model, profileText, extraHeaders) 
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key, ...(extraHeaders || {}) },
     body: JSON.stringify(body)
-  }, 30000);
+  }, 60000);
   if (!res.ok) return httpError(res);
   const json = await res.json().catch(() => null);
   if (!json) return { ok: false, error: 'bad_response' };

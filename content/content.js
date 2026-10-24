@@ -110,11 +110,22 @@
     el.querySelector('.lse-go').addEventListener('click', run);
   }
 
+  let loadingTimer = null;
   function showLoading() {
-    panel().querySelector('.lse-body').innerHTML = `<p class="lse-muted">Estimating…</p>`;
+    const started = Date.now();
+    const body = panel().querySelector('.lse-body');
+    const tick = () => {
+      const s = Math.round((Date.now() - started) / 1000);
+      body.innerHTML = `<p class="lse-muted">Estimating… ${s}s</p>`;
+    };
+    tick();
+    clearInterval(loadingTimer);
+    loadingTimer = setInterval(tick, 1000);
   }
+  function stopLoading() { clearInterval(loadingTimer); loadingTimer = null; }
 
   function showError(code, detail) {
+    stopLoading();
     const el = panel();
     const extra = detail ? ` <span class="lse-muted">(${detail})</span>` : '';
     el.querySelector('.lse-body').innerHTML =
@@ -124,6 +135,7 @@
   }
 
   function showResult(d) {
+    stopLoading();
     const range = (d.min && d.max)
       ? `${fmtMoney(d.min, d.currency)} – ${fmtMoney(d.max, d.currency)}`
       : 'Not enough info';
@@ -145,7 +157,7 @@
 
     // Safety net: if the worker never answers (e.g. it was suspended), do not spin forever.
     let done = false;
-    const guard = setTimeout(() => { if (!done) { done = true; showError('timeout'); } }, 55000);
+    const guard = setTimeout(() => { if (!done) { done = true; showError('timeout'); } }, 95000);
 
     chrome.runtime.sendMessage({ cmd: 'estimate', profileText: text }, (res) => {
       if (done) return;
