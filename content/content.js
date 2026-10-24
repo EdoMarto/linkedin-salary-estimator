@@ -24,32 +24,43 @@
   // Build a profile summary for the model from the whole career, not just the current title.
   // The name is left out on purpose: it adds nothing to a market estimate and keeps the
   // request about a role/experience profile rather than a named individual.
+  // LinkedIn changes its markup often, so this tries precise selectors first and falls back
+  // to the readable text of the main column if they do not match.
   function readProfileText() {
-    const h1 = document.querySelector('main h1');
-    if (!h1) return null;
-    const card = h1.closest('section') || document.querySelector('main');
+    const main = document.querySelector('main') || document.body;
     const parts = [];
 
-    const grab = (label, sel, root) => {
-      const el = (root || card || document).querySelector(sel);
-      if (el && el.textContent.trim()) parts.push(label + ': ' + el.textContent.trim());
-    };
-    grab('Headline', '.text-body-medium.break-words');
-    grab('Location', '.text-body-small.inline.t-black--light.break-words');
+    // Headline: the line under the name. Try a few known class names, then a heuristic.
+    const headline =
+      main.querySelector('.text-body-medium.break-words') ||
+      main.querySelector('div.text-body-medium');
+    if (headline && headline.textContent.trim()) parts.push('Headline: ' + headline.textContent.trim());
 
+    // Location: small muted line in the top card.
+    const loc =
+      main.querySelector('.text-body-small.inline.t-black--light.break-words') ||
+      main.querySelector('span.text-body-small.t-black--light');
+    if (loc && loc.textContent.trim()) parts.push('Location: ' + loc.textContent.trim());
+
+    // Profile sections are anchored by id (#experience, #education, #skills).
     const section = (anchorId, label) => {
-      const sec = document.querySelector('#' + anchorId)?.closest('section');
-      if (sec) parts.push(label + ':\n' + cleanLines(sec.innerText, 40));
+      const anchor = document.getElementById(anchorId);
+      const sec = anchor?.closest('section') || anchor?.parentElement;
+      if (sec && sec.innerText.trim()) parts.push(label + ':\n' + cleanLines(sec.innerText, 40));
     };
     section('experience', 'Experience');
     section('education', 'Education');
     section('skills', 'Skills');
 
-    // Nothing useful beyond the headline means the profile is still loading or private.
-    if (parts.length <= 2 && !document.querySelector('#experience')) {
-      // Keep whatever we have; the model can still estimate from the headline + location.
+    // If the precise selectors found almost nothing, fall back to the whole main column.
+    const haveSections = parts.some((p) => p.startsWith('Experience'));
+    if (!haveSections) {
+      const dump = cleanLines(main.innerText || '', 120);
+      if (dump.length > 80) return (parts.length ? parts.join('\n\n') + '\n\n' : '') + 'Profile:\n' + dump;
     }
-    return parts.join('\n\n');
+
+    const text = parts.join('\n\n');
+    return text.trim().length > 20 ? text : null;
   }
 
   function fmtMoney(n, currency) {
@@ -63,14 +74,14 @@
   }
 
   const ERRORS = {
-    no_key: 'Add your free Gemini API key in the extension options first.',
+    no_key: 'Add your free API key in the extension options first.',
     bad_key: 'That API key was rejected. Check it in the options.',
-    rate_limit: 'Gemini is rate limiting the free tier. Wait a bit and try again.',
-    network: 'Could not reach Gemini. Check your connection.',
-    server: 'Gemini returned an error. Try again later.',
-    bad_response: 'Could not read Gemini\'s answer.',
-    empty: 'Gemini returned nothing. Try again.',
-    blocked: 'Gemini stopped before answering.',
+    rate_limit: 'The provider is rate limiting the free tier. Wait a bit and try again.',
+    network: 'Could not reach the provider. Check your connection.',
+    server: 'The provider returned an error. Try again later.',
+    bad_response: 'Could not read the provider\'s answer.',
+    empty: 'The provider returned nothing. Try again.',
+    blocked: 'The provider stopped before answering.',
     noprofile: 'Could not read this profile. Open it fully and try again.'
   };
 
