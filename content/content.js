@@ -150,7 +150,15 @@
     el.querySelector('.lse-link').addEventListener('click', run);
   }
 
+  // After the extension is reloaded or updated, the old content script left on the page is orphaned:
+  // chrome.runtime.id becomes undefined and any chrome.* call throws "Extension context invalidated".
+  // We check this before touching chrome APIs and quietly stand down instead of throwing.
+  function alive() {
+    try { return !!chrome.runtime?.id; } catch (_) { return false; }
+  }
+
   async function run() {
+    if (!alive()) return;
     showLoading();
     const text = readProfileText();
     if (!text) { showError('noprofile'); return; }
@@ -172,21 +180,26 @@
 
   // Show cached result for this profile if we have one, otherwise the button.
   async function init() {
-    const key = 'cache:' + profileKey();
-    const store = await chrome.storage.local.get(key);
-    const hit = store[key];
-    if (hit && Date.now() - hit.at < 1000 * 60 * 60 * 24 * 30) showResult(hit.data);
-    else showButton();
+    if (!alive()) return;
+    try {
+      const key = 'cache:' + profileKey();
+      const store = await chrome.storage.local.get(key);
+      const hit = store[key];
+      if (hit && Date.now() - hit.at < 1000 * 60 * 60 * 24 * 30) showResult(hit.data);
+      else showButton();
+    } catch (_) {
+      // Context went away mid-call; the orphaned script stops here.
+    }
   }
 
   // LinkedIn is a single-page app: re-init when the profile in the URL changes.
   let last = profileKey();
-  const reinit = () => {
+  const poll = setInterval(() => {
+    if (!alive()) { clearInterval(poll); document.getElementById(PANEL_ID)?.remove(); return; }
     const now = profileKey();
     if (!now) { document.getElementById(PANEL_ID)?.remove(); return; }
     if (now !== last) { last = now; document.getElementById(PANEL_ID)?.remove(); init(); }
-  };
-  setInterval(reinit, 1000);
+  }, 1000);
 
   if (profileKey()) init();
 })();
