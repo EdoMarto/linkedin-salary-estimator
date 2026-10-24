@@ -2,12 +2,16 @@ const $ = (id) => document.getElementById(id);
 
 const DEFAULT_MODEL = {
   gemini: 'gemini-3.8-flash',
-  groq: 'llama-3.3-70b-versatile',
+  groq: 'llama-3.1-8b-instant',
   openrouter: 'meta-llama/llama-3.3-70b-instruct:free'
 };
 
-// Old model names that providers have retired, so a saved value is bumped on load.
-const RETIRED = { 'gemini-2.0-flash': 'gemini-3.8-flash', 'gemini-1.5-flash': 'gemini-3.8-flash' };
+// Model names that are retired or off the free tier, so a saved value is bumped on load.
+const RETIRED = {
+  'gemini-2.0-flash': 'gemini-3.8-flash',
+  'gemini-1.5-flash': 'gemini-3.8-flash',
+  'llama-3.3-70b-versatile': 'llama-3.1-8b-instant'
+};
 
 const KEY_HINT = {
   gemini: 'Free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>.',
@@ -17,7 +21,7 @@ const KEY_HINT = {
 
 const MODEL_HINT = {
   gemini: 'e.g. gemini-3.8-flash or gemini-2.5-flash',
-  groq: 'e.g. llama-3.3-70b-versatile or llama-3.1-8b-instant',
+  groq: 'e.g. llama-3.1-8b-instant or openai/gpt-oss-20b (free tier)',
   openrouter: 'e.g. meta-llama/llama-3.3-70b-instruct:free'
 };
 

@@ -4,14 +4,16 @@
 
 const DEFAULT_MODEL = {
   gemini: 'gemini-3.8-flash',
-  groq: 'llama-3.3-70b-versatile',
+  groq: 'llama-3.1-8b-instant',
   openrouter: 'meta-llama/llama-3.3-70b-instruct:free'
 };
 
-// Models the providers have retired, mapped to what replaces them, so a saved old value self-heals.
+// Models that are retired or no longer on the free tier, mapped to a free replacement,
+// so a saved old value self-heals instead of returning a 404.
 const RETIRED = {
   'gemini-2.0-flash': 'gemini-3.8-flash',
-  'gemini-1.5-flash': 'gemini-3.8-flash'
+  'gemini-1.5-flash': 'gemini-3.8-flash',
+  'llama-3.3-70b-versatile': 'llama-3.1-8b-instant'
 };
 
 const SYSTEM = [
