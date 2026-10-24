@@ -106,8 +106,7 @@
   function showButton() {
     const el = panel();
     el.querySelector('.lse-body').innerHTML = `
-      <button class="lse-go">Estimate market salary</button>
-      <p class="lse-fine">An estimate for the role, not this person's real pay.</p>`;
+      <button class="lse-go">Estimate market salary</button>`;
     el.querySelector('.lse-go').addEventListener('click', run);
   }
 
@@ -134,7 +133,7 @@
       <div class="lse-sub">${[d.role, d.location].filter(Boolean).join(' · ')}</div>
       <div class="lse-conf">Confidence: ${d.confidence || 'low'}${d.seniority ? ' · ' + d.seniority : ''}${d.years ? ' · ' + d.years + 'y exp' : ''}</div>
       ${d.notes ? `<p class="lse-muted">${d.notes}</p>` : ''}
-      <p class="lse-fine">Typical gross yearly pay for someone with this experience in this market. Not this person's real salary, which is private and unknown.</p>
+      <p class="lse-fine">Market estimate, not actual pay.</p>
       <button class="lse-link" type="button">Re-estimate</button>`;
     el.querySelector('.lse-link').addEventListener('click', run);
   }
