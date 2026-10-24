@@ -67,6 +67,44 @@ $('toggle').addEventListener('click', () => {
   $('toggle').textContent = show ? 'Hide' : 'Show';
 });
 
+// Ask the chosen provider which models the current key can actually use, so the Model box
+// offers real choices instead of a guessed id that may 404.
+async function fetchModels(provider, key) {
+  if (provider === 'gemini') {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(key));
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    return (j.models || [])
+      .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map((m) => String(m.name).replace(/^models\//, ''));
+  }
+  const base = provider === 'groq' ? 'https://api.groq.com/openai/v1' : 'https://openrouter.ai/api/v1';
+  const r = await fetch(base + '/models', { headers: { Authorization: 'Bearer ' + key } });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  return (j.data || []).map((m) => m.id).filter(Boolean);
+}
+
+$('loadModels').addEventListener('click', async () => {
+  const provider = $('provider').value;
+  const key = $('key').value.trim();
+  const msg = $('modelmsg');
+  if (!key) { msg.textContent = 'Enter the API key first, then load models.'; msg.className = 'msg err'; return; }
+  msg.textContent = 'Loading…'; msg.className = 'msg';
+  try {
+    let models = await fetchModels(provider, key);
+    // Put free OpenRouter models first so they are easy to spot.
+    models.sort((a, b) => (b.endsWith(':free') - a.endsWith(':free')) || a.localeCompare(b));
+    const dl = $('models');
+    dl.innerHTML = models.map((m) => `<option value="${m}">`).join('');
+    msg.textContent = models.length + ' models available. Click the Model box to pick one.';
+    msg.className = 'msg ok';
+  } catch (e) {
+    msg.textContent = 'Could not load models (' + (e.message || e) + '). Check the key.';
+    msg.className = 'msg err';
+  }
+});
+
 $('save').addEventListener('click', () => {
   const p = $('provider').value;
   state.provider = p;

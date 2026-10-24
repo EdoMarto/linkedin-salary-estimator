@@ -30,7 +30,8 @@ The key stays in your browser and is sent straight to the provider you pick. You
 1. Download or clone this folder.
 2. Open `chrome://extensions` and turn on Developer mode (top right).
 3. Click Load unpacked and select the folder.
-4. Click the extension icon, open Options, choose a provider and paste its API key.
+4. Click the extension icon, open Options, choose a provider and paste its API key. Click "Load models" to
+   see the models your key can use and pick one.
 
 <p align="center">
   <img src="docs/options.png" alt="Options page: provider, API key and model" width="460">

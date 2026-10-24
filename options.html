@@ -41,8 +41,13 @@
   </div>
 
   <label for="model">Model</label>
-  <input id="model" type="text" autocomplete="off" spellcheck="false">
+  <div class="row">
+    <input id="model" type="text" list="models" autocomplete="off" spellcheck="false">
+    <button id="loadModels" class="alt" type="button" style="margin-top:0;">Load models</button>
+  </div>
+  <datalist id="models"></datalist>
   <p class="hint" id="modelhint"></p>
+  <p class="msg" id="modelmsg"></p>
 
   <div><button id="save">Save</button></div>
   <div id="msg" class="msg"></div>
