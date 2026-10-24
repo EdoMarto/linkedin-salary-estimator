@@ -12,6 +12,11 @@ of the page.
 The number is a market estimate for a person with that experience, not the real salary of that individual.
 A person's actual pay is private and unknown. Think of it like a quick Glassdoor lookup.
 
+<p align="center">
+  <img src="docs/card.png" alt="The estimate card, example data" width="300">
+</p>
+<p align="center"><sub>The card on a profile (example data).</sub></p>
+
 ## What you need
 A free API key from one of these providers, set in the options:
 
@@ -26,6 +31,10 @@ The key stays in your browser and is sent straight to the provider you pick. You
 2. Open `chrome://extensions` and turn on Developer mode (top right).
 3. Click Load unpacked and select the folder.
 4. Click the extension icon, open Options, choose a provider and paste its API key.
+
+<p align="center">
+  <img src="docs/options.png" alt="Options page: provider, API key and model" width="460">
+</p>
 
 ## Use
 Open any profile at `linkedin.com/in/…`. A card shows in the bottom right with an "Estimate market salary"
