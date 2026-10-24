@@ -53,6 +53,17 @@ function mapStatus(status) {
   return 'server';
 }
 
+// fetch that gives up after a while, so a hung request does not leave the card spinning forever.
+async function fetchWithTimeout(url, opts, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Turn a failed response into an error object that carries the status and the provider's message,
 // so the card can show exactly what went wrong instead of a generic "try again later".
 async function httpError(res) {
@@ -82,7 +93,7 @@ async function callGemini(key, model, profileText) {
     contents: [{ parts: [{ text: userText(profileText) }] }],
     generationConfig: { temperature: 0.2, maxOutputTokens: 512, responseMimeType: 'application/json', responseSchema: geminiSchema }
   };
-  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const res = await fetchWithTimeout(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, 30000);
   if (!res.ok) return httpError(res);
   const json = await res.json().catch(() => null);
   if (!json) return { ok: false, error: 'bad_response' };
@@ -111,11 +122,11 @@ async function callOpenAICompatible(url, key, model, profileText, extraHeaders) 
       { role: 'user', content: userText(profileText) }
     ]
   };
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key, ...(extraHeaders || {}) },
     body: JSON.stringify(body)
-  });
+  }, 30000);
   if (!res.ok) return httpError(res);
   const json = await res.json().catch(() => null);
   if (!json) return { ok: false, error: 'bad_response' };
@@ -143,14 +154,16 @@ async function estimate(profileText) {
     if (provider === 'openrouter') return await callOpenAICompatible('https://openrouter.ai/api/v1/chat/completions', key, model, profileText,
       { 'HTTP-Referer': 'https://github.com/EdoMarto/linkedin-salary-estimator', 'X-Title': 'Salary Estimator for LinkedIn' });
     return { ok: false, error: 'no_key' };
-  } catch (_) {
-    return { ok: false, error: 'network' };
+  } catch (e) {
+    return { ok: false, error: e?.name === 'AbortError' ? 'timeout' : 'network' };
   }
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.cmd === 'estimate') {
-    estimate(msg.profileText).then(sendResponse);
+    estimate(msg.profileText)
+      .then(sendResponse)
+      .catch((e) => sendResponse({ ok: false, error: 'network', detail: String(e?.message || e).slice(0, 120) }));
     return true; // keep the channel open for the async reply
   }
 });

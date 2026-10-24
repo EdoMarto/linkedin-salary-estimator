@@ -82,6 +82,7 @@
     bad_response: 'Could not read the provider\'s answer.',
     empty: 'The provider returned nothing. Try again.',
     blocked: 'The provider stopped before answering.',
+    timeout: 'The provider took too long. Try again.',
     noprofile: 'Could not read this profile. Open it fully and try again.'
   };
 
@@ -142,8 +143,17 @@
     showLoading();
     const text = readProfileText();
     if (!text) { showError('noprofile'); return; }
+
+    // Safety net: if the worker never answers (e.g. it was suspended), do not spin forever.
+    let done = false;
+    const guard = setTimeout(() => { if (!done) { done = true; showError('timeout'); } }, 40000);
+
     chrome.runtime.sendMessage({ cmd: 'estimate', profileText: text }, (res) => {
-      if (!res || !res.ok) { showError(res?.error || 'server', res?.detail); return; }
+      if (done) return;
+      done = true;
+      clearTimeout(guard);
+      if (chrome.runtime.lastError || !res) { showError('network', chrome.runtime.lastError?.message); return; }
+      if (!res.ok) { showError(res.error || 'server', res.detail); return; }
       chrome.storage.local.set({ ['cache:' + profileKey()]: { at: Date.now(), data: res.data } });
       showResult(res.data);
     });
