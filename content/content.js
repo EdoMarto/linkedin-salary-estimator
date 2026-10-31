@@ -63,6 +63,13 @@
     return text.trim().length > 20 ? text : null;
   }
 
+  // Escape values that come from the model or provider before putting them in innerHTML,
+  // so a crafted profile cannot inject markup into the viewer's LinkedIn page.
+  function esc(v) {
+    return String(v).replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
   function fmtMoney(n, currency) {
     try {
       return new Intl.NumberFormat(undefined, {
@@ -127,7 +134,7 @@
   function showError(code, detail) {
     stopLoading();
     const el = panel();
-    const extra = detail ? ` <span class="lse-muted">(${detail})</span>` : '';
+    const extra = detail ? ` <span class="lse-muted">(${esc(detail)})</span>` : '';
     el.querySelector('.lse-body').innerHTML =
       `<p class="lse-err">${ERRORS[code] || 'Something went wrong.'}${extra}</p>
        <button class="lse-go">Try again</button>`;
@@ -141,10 +148,10 @@
       : 'Not enough info';
     const el = panel();
     el.querySelector('.lse-body').innerHTML = `
-      <div class="lse-range">${range}</div>
-      <div class="lse-sub">${[d.role, d.location].filter(Boolean).join(' · ')}</div>
-      <div class="lse-conf">Confidence: ${d.confidence || 'low'}${d.seniority ? ' · ' + d.seniority : ''}${d.years ? ' · ' + d.years + 'y exp' : ''}</div>
-      ${d.notes ? `<p class="lse-muted">${d.notes}</p>` : ''}
+      <div class="lse-range">${esc(range)}</div>
+      <div class="lse-sub">${[d.role, d.location].filter(Boolean).map(esc).join(' · ')}</div>
+      <div class="lse-conf">Confidence: ${esc(d.confidence || 'low')}${d.seniority ? ' · ' + esc(d.seniority) : ''}${d.years ? ' · ' + esc(d.years) + 'y exp' : ''}</div>
+      ${d.notes ? `<p class="lse-muted">${esc(d.notes)}</p>` : ''}
       <p class="lse-fine">Market estimate, not actual pay.</p>
       <button class="lse-link" type="button">Re-estimate</button>`;
     el.querySelector('.lse-link').addEventListener('click', run);

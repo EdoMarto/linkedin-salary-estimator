@@ -55,6 +55,11 @@ function mapStatus(status) {
   return 'server';
 }
 
+// Per-attempt fetch timeout. Kept low enough that the worst case (3 attempts plus backoff,
+// 3 * 25000 + 1500 + 3000 = 79.5s) stays under the content script's 95s guard, so the card
+// never shows "timeout" while the worker is still spending quota on a reply.
+const ATTEMPT_TIMEOUT_MS = 25000;
+
 // fetch that gives up after a while, so a hung request does not leave the card spinning forever.
 async function fetchWithTimeout(url, opts, ms) {
   const ctrl = new AbortController();
@@ -97,7 +102,7 @@ async function callGemini(key, model, profileText) {
     contents: [{ parts: [{ text: userText(profileText) }] }],
     generationConfig: { temperature: 0.2, maxOutputTokens: 512, responseMimeType: 'application/json', responseSchema: geminiSchema }
   };
-  const res = await fetchWithTimeout(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, 60000);
+  const res = await fetchWithTimeout(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, ATTEMPT_TIMEOUT_MS);
   if (!res.ok) return httpError(res);
   const json = await res.json().catch(() => null);
   if (!json) return { ok: false, error: 'bad_response' };
@@ -130,7 +135,7 @@ async function callOpenAICompatible(url, key, model, profileText, extraHeaders) 
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key, ...(extraHeaders || {}) },
     body: JSON.stringify(body)
-  }, 60000);
+  }, ATTEMPT_TIMEOUT_MS);
   if (!res.ok) return httpError(res);
   const json = await res.json().catch(() => null);
   if (!json) return { ok: false, error: 'bad_response' };
